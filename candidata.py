@@ -317,16 +317,19 @@ def addCodMunIBGE_codTSE(reader):
 
                 codIbgeMun = listaInformacoes[1]
                 listaDasCoisas.append(codIbgeMun)
-                
+            
+
             if(reader['CD_MUNICIPIO'][x]==-1):
                     
-                    nomecidade = reader['NM_MUNICIPIO'][x]
-                    listaInfo = retornarTudoCodigos("", nomecidade)
-                    
-                    reader.loc[x:x,'CD_MUNICIPIO'] = listaInfo[0]
+                nomecidade = reader['NM_MUNICIPIO'][x]
+                listaInfo = retornarTudoCodigos("", nomecidade)
+                
+                reader.loc[x:x,'CD_MUNICIPIO'] = listaInfo[0]
 
-        reader['CD_MUN_IBGE'] = listaDasCoisas
+        if(len(listaDasCoisas)!=0):
+            reader['CD_MUN_IBGE'] = listaDasCoisas
         
+
         return reader
 
 def consolidacao(consultacand, votacaoNominal, arquivocand, arquivovot):
@@ -342,7 +345,7 @@ def consolidacao(consultacand, votacaoNominal, arquivocand, arquivovot):
     votacaoNominal['CD_GENERO'] = generoCD
     votacaoNominal['DS_GENERO'] = generoDS
     votacaoNominal['CD_CBO'] = cbo
-    votacaoNominal['QT_VOTOS_NOMINAIS'] = 0
+    # votacaoNominal['QT_VOTOS_NOMINAIS'] = 0
     
     
     votacaoNominal.to_csv(arquivovot,sep=',',encoding='utf-8',index=False)
@@ -355,13 +358,15 @@ def main(ano):
     # no final a consolidação é quem vai juntar as duas
 
 
-    for uf in siglas:
+    for uf in ['AL']:
         print(uf)
         
         arquivoCandidato = 'consulta_cand_'+str(ano)+'_'+uf+'.csv'
         
         readerCandidato = pd.read_csv(arquivoCandidato,encoding='latin1',sep=';')
-       
+        readerCandidato.rename(columns={"NM_UE": "NM_MUNICIPIO"})
+        readerCandidato.to_csv(arquivoCandidato, sep=';', encoding='latin1')
+
     ## CONSULTA CAND ##
 
     # VALIDACAO #
@@ -443,6 +448,9 @@ def main(ano):
         votosLista = []
         print("DICIONARIO QT_VOTOS_NOMINAIS + NULOS")
         for y in range(len(readerVotacao)):
+            dataEleicao = readerVotacao['DT_ELEICAO'][y]
+            readerCandidato.loc[y:y,'DT_ELEICAO'] = corrigirDataNascimento(dataEleicao)
+
             for campoVotacao in headerArquivoVotacao:
                     valor = readerVotacao[campoVotacao][y]
                     retorno = removerNulos(campoVotacao, valor, readerVotacao)
@@ -452,7 +460,7 @@ def main(ano):
             nome = readerVotacao['NM_CANDIDATO'][y]
             votos = readerVotacao['QT_VOTOS_NOMINAIS'][y]
             turno = readerVotacao['NR_TURNO'][y]
-            if(nome not in candidatos or turno==2):
+            if(nome not in candidatos or (nome in candidatos and turno==2) ):
                 candidatos.append(nome)
                 votosLista.append(votos)
             else:
@@ -465,7 +473,7 @@ def main(ano):
         print("TROCA QT_VOTOS_NOMINAIS")
         for z in range(len(readerVotacao)):
                 try:
-                    
+                    print(dicionario)
                     nomeC = readerVotacao['NM_CANDIDATO'][z]
                     votosCorretos = dicionario.get(nomeC)
                     
@@ -482,6 +490,11 @@ def main(ano):
 
         # CONSOLIDACAO #
         print("CONSOLIDACAO")
+        arquivoVotacao = 'votacao_candidato_munzona_'+str(ano)+'_'+uf+'.csv'
+        readerVotacao = pd.read_csv(arquivoVotacao,encoding='utf8',sep=',')
+        arquivoCandidato = 'consulta_cand_'+str(ano)+'_'+uf+'.csv'
+        
+        readerCandidato = pd.read_csv(arquivoCandidato,encoding='utf8',sep=',')
         consolidacao(readerCandidato, readerVotacao, arquivoCandidato, arquivoVotacao)
         # except FileNotFoundError:
         #     pass
