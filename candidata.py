@@ -362,168 +362,172 @@ def main(ano):
     # no final a consolidação é quem vai juntar as duas
 
 
-    for uf in ['AL']:
+    for uf in siglas:
         print(uf)
-        
-        arquivoCandidato = 'consulta_cand_'+str(ano)+'_'+uf+'.csv'
-        
-        readerCandidato = pd.read_csv(arquivoCandidato,encoding='latin1',sep=';')
-        readerCandidato = readerCandidato.rename(columns={"NM_UE": "NM_MUNICIPIO"})
-
-
-    # CONSULTA CAND ##
-
-    # VALIDACAO #
-        print("INICIO VALIDACAO CANDIDATOS")
-
-        readerCandidato = replaceUTF8(readerCandidato,headerArquivoCandidato)
-        
-
-        readerCandidato['CD_CBO'] = 0 # so criando aqui a coluna
-
-        for x in range(len(readerCandidato)):
-            dataNascimento = readerCandidato['DT_NASCIMENTO'][x]
-            idade = readerCandidato['NR_IDADE_DATA_POSSE'][x]
-            tituloEleitor = readerCandidato['NR_TITULO_ELEITORAL_CANDIDATO'][x]
-            genero = readerCandidato['DS_GENERO'][x]
-            anoEleicao = readerCandidato['ANO_ELEICAO'][0]
-            nome = readerCandidato['NM_CANDIDATO'][x]
-            ocupacao = readerCandidato['DS_OCUPACAO'][x]
+        try:
+            arquivoCandidato = 'candidatos/consulta_cand_'+str(ano)+'_'+uf+'.csv'
             
-            readerCandidato.loc[x:x,'DT_NASCIMENTO'] = corrigirDataNascimento(dataNascimento)
+            readerCandidato = pd.read_csv(arquivoCandidato,encoding='latin1',sep=';')
+            readerCandidato = readerCandidato.rename(columns={"NM_UE": "NM_MUNICIPIO"})
+
+
+        # CONSULTA CAND ##
+
+        # VALIDACAO #
+            print("INICIO VALIDACAO CANDIDATOS")
+
+            readerCandidato = replaceUTF8(readerCandidato,headerArquivoCandidato)
             
-            readerCandidato.loc[x:x,'NR_IDADE_DATA_POSSE'] = corrigirIdade(idade, dataNascimento, anoEleicao)
 
-            readerCandidato.loc[x:x,'NR_TITULO_ELEITORAL_CANDIDATO'] = padronizarTituloEleitor(tituloEleitor)
+            readerCandidato['CD_CBO'] = 0 # so criando aqui a coluna
 
-            listaSexo = temCampoSexo(genero, nome)
-            if(listaSexo!=True):
-                cdGen = listaSexo[0]
-                dsGen = listaSexo[1]
-                readerCandidato.loc[x:x,'CD_GENERO'] = cdGen
-                readerCandidato.loc[x:x,'DS_GENERO'] = dsGen
+            for x in range(len(readerCandidato)):
+                dataNascimento = readerCandidato['DT_NASCIMENTO'][x]
+                idade = readerCandidato['NR_IDADE_DATA_POSSE'][x]
+                tituloEleitor = readerCandidato['NR_TITULO_ELEITORAL_CANDIDATO'][x]
+                genero = readerCandidato['DS_GENERO'][x]
+                anoEleicao = readerCandidato['ANO_ELEICAO'][0]
+                nome = readerCandidato['NM_CANDIDATO'][x]
+                ocupacao = readerCandidato['DS_OCUPACAO'][x]
+                
+                readerCandidato.loc[x:x,'DT_NASCIMENTO'] = corrigirDataNascimento(dataNascimento)
+                
+                readerCandidato.loc[x:x,'NR_IDADE_DATA_POSSE'] = corrigirIdade(idade, dataNascimento, anoEleicao)
+
+                readerCandidato.loc[x:x,'NR_TITULO_ELEITORAL_CANDIDATO'] = padronizarTituloEleitor(tituloEleitor)
+
+                listaSexo = temCampoSexo(genero, nome)
+                if(listaSexo!=True):
+                    cdGen = listaSexo[0]
+                    dsGen = listaSexo[1]
+                    readerCandidato.loc[x:x,'CD_GENERO'] = cdGen
+                    readerCandidato.loc[x:x,'DS_GENERO'] = dsGen
 
 
-    #ADICAO #
-            readerCandidato.loc[x:x,'CD_CBO'] = cboInsert(ocupacao)
-            # salvo aqui o readerCandidato
+        #ADICAO #
+                readerCandidato.loc[x:x,'CD_CBO'] = cboInsert(ocupacao)
+                # salvo aqui o readerCandidato
+                readerCandidato.to_csv(arquivoCandidato,sep=',',encoding='utf8',index=False)
+
+
+        # NULOS #
+
+                for campoCandidato in headerArquivoCandidato:
+                    valor = readerCandidato[campoCandidato][x]
+                    retorno = removerNulos(campoCandidato, valor, readerCandidato)
+                    if(retorno!=True):
+                        readerCandidato.loc[x:x,campoCandidato] = retorno
+                
+
+
             readerCandidato.to_csv(arquivoCandidato,sep=',',encoding='utf8',index=False)
-
-
-    # NULOS #
-
-            for campoCandidato in headerArquivoCandidato:
-                valor = readerCandidato[campoCandidato][x]
-                retorno = removerNulos(campoCandidato, valor, readerCandidato)
-                if(retorno!=True):
-                    readerCandidato.loc[x:x,campoCandidato] = retorno
+        #correcao quantidade votos #
             
+            print("FIM VALIDACAO CANDIDATOS")
+            print("INICIO VALIDACAO VOTACAO")
+        # VOTACAO NOMINAL ##
+            """
+                Aqui tem a questão dos votos, porque como são zonas, então o mesmo candidato
+                aparece várias vezes no arquivo, e tem que fazer a soma dos votos de cada zona
+                para aquele candidaot
 
+                Ai ele vai montar um dicionário com a quantidade de votos de cada candidato e enquanto
+                monta o dicionario, vai apagando as duplicatas, pra no final nao termos o total de votos
+                logo em vez de um voto por zona eleitoral.
 
-        readerCandidato.to_csv(arquivoCandidato,sep=',',encoding='utf8',index=False)
-    #correcao quantidade votos #
-        
-        print("FIM VALIDACAO CANDIDATOS")
-        print("INICIO VALIDACAO VOTACAO")
-    # VOTACAO NOMINAL ##
-        """
-            Aqui tem a questão dos votos, porque como são zonas, então o mesmo candidato
-            aparece várias vezes no arquivo, e tem que fazer a soma dos votos de cada zona
-            para aquele candidaot
+                Depois ele vai limpar os nulos e etc etc
 
-            Ai ele vai montar um dicionário com a quantidade de votos de cada candidato e enquanto
-            monta o dicionario, vai apagando as duplicatas, pra no final nao termos o total de votos
-            logo em vez de um voto por zona eleitoral.
-
-            Depois ele vai limpar os nulos e etc etc
-
-            e no final vai rodar novamente para passar atualizando os votos de acordo com o dicionario.
-        """
-        arquivoVotacao = 'votacao_candidato_munzona_'+str(ano)+'_'+uf+'.csv'
-            
-        readerVotacao = pd.read_csv(arquivoVotacao,encoding='latin1',sep=';')
-        readerVotacao = replaceUTF8(readerVotacao,headerArquivoVotacao)
-        readerVotacao = addCodMunIBGE_codTSE(readerVotacao)
-        candidatos = []
-        votosLista = []
-        print("DICIONARIO QT_VOTOS_NOMINAIS")
-        
-        # arquivo original #
-        for y in range(len(readerVotacao)):
-            sequencial = readerVotacao['SQ_CANDIDATO'][y]
-            votos = readerVotacao['QT_VOTOS_NOMINAIS'][y]
-            turno = readerVotacao['NR_TURNO'][y]
-            if(sequencial not in candidatos):
-                candidatos.append(sequencial)
-                votosLista.append(votos)
-            else:
-                if(pd.isna(votos)==False and votos!=""):
-                    indiceCandidatos = candidatos.index(sequencial)
-                    votosLista[indiceCandidatos]+=votos
-                    readerVotacao = readerVotacao.drop(y)
-                else:
-                    indiceCandidatos = candidatos.index(sequencial)
-                    votosLista[indiceCandidatos]+=0
-                    readerVotacao = readerVotacao.drop(y)
-
-
-        
-        
-        dicionario = dict(zip(candidatos,votosLista))
-        readerVotacao.to_csv(arquivoVotacao,sep=',',encoding='utf8', index=False)
-        
-        print("TROCA QT_VOTOS_NOMINAIS + Limpeza Nulos")
-        
-        readerVotacao = pd.read_csv(arquivoVotacao,sep=',',encoding='utf8')
-        for z in range(len(readerVotacao)):
-            
-            
-            #limpeza nulos
-        
-                for campoVotacao in headerArquivoVotacao:
-                        valor = readerVotacao[campoVotacao][z]
-                        if(pd.isna(valor)==False):
-                            retorno = removerNulos(campoVotacao, valor, readerVotacao)
-                            if(retorno!=True):
-                                readerVotacao.loc[z:z,campoVotacao] = retorno
+                e no final vai rodar novamente para passar atualizando os votos de acordo com o dicionario.
+            """
+            arquivoVotacao = 'candidatos/votacao_candidato_munzona_'+str(ano)+'_'+uf+'.csv'
                 
-                dataEleicao = readerVotacao['DT_ELEICAO'][z]
-                
-                if(pd.isna(dataEleicao)==False):
-                    readerVotacao.loc[z:z,'DT_ELEICAO'] = corrigirDataNascimento(dataEleicao)
-                else:
-                    readerVotacao.loc[z:z,'DT_ELEICAO'] = -1
-
-                sequencialC = readerVotacao['SQ_CANDIDATO'][z]
-                votosCorretos = dicionario.get(sequencialC)
-                
-                if(votosCorretos==None):
-                    readerVotacao.loc[z:z,'QT_VOTOS_NOMINAIS'] = -1
-                else:
-                    readerVotacao.loc[z:z,'QT_VOTOS_NOMINAIS'] = votosCorretos
-        
-        
-        readerVotacao.to_csv(arquivoVotacao,sep=',',encoding='utf8',index=False)
-    
-        print("FIM VALIDACAO VOTACAO")
-        
-
-        #CONSOLIDACAO #
-        print("CONSOLIDACAO")
-        
-        arquivoCandidato = 'consulta_cand_'+str(ano)+'_'+uf+'.csv'
-        
-        readerCandidato = pd.read_csv(arquivoCandidato,encoding='utf8',sep=',')
-
-        arquivoVotacao = 'votacao_candidato_munzona_'+str(ano)+'_'+uf+'.csv'
+            readerVotacao = pd.read_csv(arquivoVotacao,encoding='latin1',sep=';')
+            readerVotacao = replaceUTF8(readerVotacao,headerArquivoVotacao)
+            readerVotacao = addCodMunIBGE_codTSE(readerVotacao)
+            candidatos = []
+            votosLista = []
+            print("DICIONARIO QT_VOTOS_NOMINAIS")
             
-        readerVotacao = pd.read_csv(arquivoVotacao,encoding='utf8',sep=',')
+            # arquivo original #
+            for y in range(len(readerVotacao)):
+                sequencial = readerVotacao['SQ_CANDIDATO'][y]
+                votos = readerVotacao['QT_VOTOS_NOMINAIS'][y]
+                turno = readerVotacao['NR_TURNO'][y]
+                if(sequencial not in candidatos):
+                    candidatos.append(sequencial)
+                    votosLista.append(votos)
+                else:
+                    if(pd.isna(votos)==False and votos!=""):
+                        indiceCandidatos = candidatos.index(sequencial)
+                        votosLista[indiceCandidatos]+=votos
+                        readerVotacao = readerVotacao.drop(y)
+                    else:
+                        indiceCandidatos = candidatos.index(sequencial)
+                        votosLista[indiceCandidatos]+=0
+                        readerVotacao = readerVotacao.drop(y)
 
-        readerVotacao = consolidacao(readerCandidato, readerVotacao, arquivoCandidato, arquivoVotacao)
-        readerVotacao.to_csv(arquivoVotacao,sep=',',encoding='utf8',index=False)
+
+            
+            
+            dicionario = dict(zip(candidatos,votosLista))
+            readerVotacao.to_csv(arquivoVotacao,sep=',',encoding='utf8', index=False)
+            
+            print("TROCA QT_VOTOS_NOMINAIS + Limpeza Nulos")
+            
+            readerVotacao = pd.read_csv(arquivoVotacao,sep=',',encoding='utf8')
+            for z in range(len(readerVotacao)):
+                
+                
+                #limpeza nulos
+            
+                    for campoVotacao in headerArquivoVotacao:
+                            valor = readerVotacao[campoVotacao][z]
+                            if(pd.isna(valor)==False):
+                                retorno = removerNulos(campoVotacao, valor, readerVotacao)
+                                if(retorno!=True):
+                                    readerVotacao.loc[z:z,campoVotacao] = retorno
+                    
+                    dataEleicao = readerVotacao['DT_ELEICAO'][z]
+                    
+                    if(pd.isna(dataEleicao)==False):
+                        readerVotacao.loc[z:z,'DT_ELEICAO'] = corrigirDataNascimento(dataEleicao)
+                    else:
+                        readerVotacao.loc[z:z,'DT_ELEICAO'] = -1
+
+                # correcao dos votos
+                    sequencialC = readerVotacao['SQ_CANDIDATO'][z]
+                    votosCorretos = dicionario.get(sequencialC)
+                    
+                    if(votosCorretos==None):
+                        readerVotacao.loc[z:z,'QT_VOTOS_NOMINAIS'] = -1
+                    else:
+                        readerVotacao.loc[z:z,'QT_VOTOS_NOMINAIS'] = votosCorretos
+            
+                # consolidacao
+
+                    readerVotacao['NR_TITULO_ELEITORAL_CANDIDATO'] = 0
+                    readerVotacao['NR_IDADE_DATA_POSSE'] = 0
+                    readerVotacao['CD_GENERO'] = 0
+                    readerVotacao['DS_GENERO'] = ""
+                    readerVotacao['CD_CBO'] = 0
         
+                    sqCandidato = readerVotacao['SQ_CANDIDATO'][z]
+                    for y in range(len(readerCandidato)):
+                        
+                        if(readerCandidato['SQ_CANDIDATO'][y]==sqCandidato):
+                            
+                            readerVotacao.loc[x:x,'CD_GENERO'] = readerCandidato['CD_GENERO'][y]
+                            readerVotacao.loc[x:x,'DS_GENERO'] = readerCandidato['DS_GENERO'][y]
+                            readerVotacao.loc[x:x,'NR_TITULO_ELEITORAL_CANDIDATO'] = readerCandidato['NR_TITULO_ELEITORAL_CANDIDATO'][y]
+                            readerVotacao.loc[x:x,'NR_IDADE_DATA_POSSE'] = readerCandidato['NR_IDADE_DATA_POSSE'][y]
+                            readerVotacao.loc[x:x,'CD_CBO'] = readerCandidato['CD_CBO'][y]
 
+            readerVotacao.to_csv(arquivoVotacao,sep=',',encoding='utf8',index=False)
+        
+            print("FIM VALIDACAO VOTACAO")
+        except FileNotFoundError:
+            print("ARQUIVO NAO ENCONTRADO")
 
 # ano = input('Digite o ano')
-ano = 2020
+ano = 2014
 main(ano)
