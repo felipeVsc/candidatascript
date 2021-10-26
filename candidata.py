@@ -26,9 +26,11 @@ from unidecode import unidecode
 
 
 #siglas das UF
+
+# RECOLOCAR AQUI DPS
 siglas = [
-                            'AC',
-                            'AL',
+                            # 'AC',
+                            # 'AL',
                             'AP',
                             'AM',
                             'BA',
@@ -204,10 +206,10 @@ def temCampoSexo(sexo,nome):
 
     if(sexo=='FEMININO' or sexo=='MASCULINO'):
         return True
-    elif sexo=='NULL' or (int(sexo)!=2 and int(sexo)!=4):
+    else:
 
-        listaNomesCandidatos = nome.str.split(' ')
-        sexo = inferirSexoPeloNome(listaNomesCandidatos[x][0])
+        listaNomesCandidatos = nome.split(' ')
+        sexo = inferirSexoPeloNome(listaNomesCandidatos[0])
 
         if(sexo==2):
             return [2,'MASCULINO']
@@ -215,7 +217,8 @@ def temCampoSexo(sexo,nome):
             return [4,'FEMININO']
         else:
             return [-1,'NULO']
-            
+
+           
 
 #utf 8#
 def replaceUTF8(reader,header):
@@ -444,6 +447,12 @@ def main(ano):
             readerVotacao = pd.read_csv(arquivoVotacao,encoding='latin1',sep=';')
             readerVotacao = replaceUTF8(readerVotacao,headerArquivoVotacao)
             readerVotacao = addCodMunIBGE_codTSE(readerVotacao)
+
+            readerVotacao['NR_TITULO_ELEITORAL_CANDIDATO'] = 0
+            readerVotacao['NR_IDADE_DATA_POSSE'] = 0
+            readerVotacao['CD_GENERO'] = 0
+            readerVotacao['DS_GENERO'] = ""
+            readerVotacao['CD_CBO'] = 0
             candidatos = []
             votosLista = []
             print("DICIONARIO QT_VOTOS_NOMINAIS")
@@ -476,8 +485,6 @@ def main(ano):
             
             readerVotacao = pd.read_csv(arquivoVotacao,sep=',',encoding='utf8')
             for z in range(len(readerVotacao)):
-                
-                
                 #limpeza nulos
             
                     for campoVotacao in headerArquivoVotacao:
@@ -504,23 +511,16 @@ def main(ano):
                         readerVotacao.loc[z:z,'QT_VOTOS_NOMINAIS'] = votosCorretos
             
                 # consolidacao
-
-                    readerVotacao['NR_TITULO_ELEITORAL_CANDIDATO'] = 0
-                    readerVotacao['NR_IDADE_DATA_POSSE'] = 0
-                    readerVotacao['CD_GENERO'] = 0
-                    readerVotacao['DS_GENERO'] = ""
-                    readerVotacao['CD_CBO'] = 0
-        
                     sqCandidato = readerVotacao['SQ_CANDIDATO'][z]
                     for y in range(len(readerCandidato)):
                         
                         if(readerCandidato['SQ_CANDIDATO'][y]==sqCandidato):
                             
-                            readerVotacao.loc[x:x,'CD_GENERO'] = readerCandidato['CD_GENERO'][y]
-                            readerVotacao.loc[x:x,'DS_GENERO'] = readerCandidato['DS_GENERO'][y]
-                            readerVotacao.loc[x:x,'NR_TITULO_ELEITORAL_CANDIDATO'] = readerCandidato['NR_TITULO_ELEITORAL_CANDIDATO'][y]
-                            readerVotacao.loc[x:x,'NR_IDADE_DATA_POSSE'] = readerCandidato['NR_IDADE_DATA_POSSE'][y]
-                            readerVotacao.loc[x:x,'CD_CBO'] = readerCandidato['CD_CBO'][y]
+                            readerVotacao.loc[z:z,'CD_GENERO'] = readerCandidato['CD_GENERO'][y]
+                            readerVotacao.loc[z:z,'DS_GENERO'] = readerCandidato['DS_GENERO'][y]
+                            readerVotacao.loc[z:z,'NR_TITULO_ELEITORAL_CANDIDATO'] = readerCandidato['NR_TITULO_ELEITORAL_CANDIDATO'][y]
+                            readerVotacao.loc[z:z,'NR_IDADE_DATA_POSSE'] = readerCandidato['NR_IDADE_DATA_POSSE'][y]
+                            readerVotacao.loc[z:z,'CD_CBO'] = readerCandidato['CD_CBO'][y]
 
             readerVotacao.to_csv(arquivoVotacao,sep=',',encoding='utf8',index=False)
         
