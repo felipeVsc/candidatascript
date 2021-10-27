@@ -19,10 +19,14 @@ Após rodar esse script daqui, rodar o de consolidação, que vai gerar o final.
 Precisa ter na pasta os arquivos: list_canonicos, municipios, e grupos.csv
 
 """
+import time
+start_time = time.time()
 
 import pandas as pd
 import json
 from unidecode import unidecode
+from progress.bar import Bar
+# progress bar
 
 
 #siglas das UF
@@ -31,10 +35,10 @@ from unidecode import unidecode
 siglas = [
                             # 'AC',
                             # 'AL',
-                            'AP',
-                            'AM',
-                            'BA',
-                            'CE',
+                            # 'AP',
+                            # 'AM',
+                            # 'BA',
+                            # 'CE',
                             'DF',
                             'ES',
                             'GO',
@@ -317,7 +321,8 @@ def addCodMunIBGE_codTSE(reader):
                 listaInformacoes = retornarTudoCodigos(codMunTSE, "")
 
                 codIbgeMun = listaInformacoes[1]
-                listaDasCoisas.append(codIbgeMun)
+                append = listaDasCoisas.append
+                append(codIbgeMun)
             
 
             if(reader['CD_MUNICIPIO'][x]==-1):
@@ -371,6 +376,7 @@ def main(ano):
             arquivoCandidato = 'candidatos/consulta_cand_'+str(ano)+'_'+uf+'.csv'
             
             readerCandidato = pd.read_csv(arquivoCandidato,encoding='latin1',sep=';')
+            # readerCandidato = pd.read_csv(arquivoCandidato,encoding='utf8',sep=',')
             readerCandidato = readerCandidato.rename(columns={"NM_UE": "NM_MUNICIPIO"})
 
 
@@ -383,7 +389,7 @@ def main(ano):
             
 
             readerCandidato['CD_CBO'] = 0 # so criando aqui a coluna
-
+            bar = Bar('Processing', max=len(readerCandidato))
             for x in range(len(readerCandidato)):
                 dataNascimento = readerCandidato['DT_NASCIMENTO'][x]
                 idade = readerCandidato['NR_IDADE_DATA_POSSE'][x]
@@ -405,7 +411,7 @@ def main(ano):
                     dsGen = listaSexo[1]
                     readerCandidato.loc[x:x,'CD_GENERO'] = cdGen
                     readerCandidato.loc[x:x,'DS_GENERO'] = dsGen
-
+                
 
         #ADICAO #
                 readerCandidato.loc[x:x,'CD_CBO'] = cboInsert(ocupacao)
@@ -421,7 +427,8 @@ def main(ano):
                     if(retorno!=True):
                         readerCandidato.loc[x:x,campoCandidato] = retorno
                 
-
+                bar.next()
+            bar.finish()
 
             readerCandidato.to_csv(arquivoCandidato,sep=',',encoding='utf8',index=False)
         #correcao quantidade votos #
@@ -458,13 +465,17 @@ def main(ano):
             print("DICIONARIO QT_VOTOS_NOMINAIS")
             
             # arquivo original #
+            bar = Bar('Processing', max=len(readerVotacao))
             for y in range(len(readerVotacao)):
+                
                 sequencial = readerVotacao['SQ_CANDIDATO'][y]
                 votos = readerVotacao['QT_VOTOS_NOMINAIS'][y]
                 turno = readerVotacao['NR_TURNO'][y]
+                append = candidatos.append
                 if(sequencial not in candidatos):
-                    candidatos.append(sequencial)
-                    votosLista.append(votos)
+                    append(sequencial)
+                    append = votosLista.append
+                    append(votos)
                 else:
                     if(pd.isna(votos)==False and votos!=""):
                         indiceCandidatos = candidatos.index(sequencial)
@@ -474,7 +485,8 @@ def main(ano):
                         indiceCandidatos = candidatos.index(sequencial)
                         votosLista[indiceCandidatos]+=0
                         readerVotacao = readerVotacao.drop(y)
-
+                bar.next()
+            bar.finish()
 
             
             
@@ -482,11 +494,36 @@ def main(ano):
             readerVotacao.to_csv(arquivoVotacao,sep=',',encoding='utf8', index=False)
             
             print("TROCA QT_VOTOS_NOMINAIS + Limpeza Nulos")
-            
+            bar = Bar('Processing', max=len(readerVotacao))
             readerVotacao = pd.read_csv(arquivoVotacao,sep=',',encoding='utf8')
+            ## new ##
+# import pandas as pd
+# equiv = {7001:1, 8001:2, 9001:3}
+# df = pd.DataFrame( {"A": [7001, 8001, 9001]} )
+# df["B"] = df["A"].map(equiv)
+# print(df)
+#       A  B
+# 0  7001  1
+# 1  8001  2
+# 2  9001  3
+            # baseado no sq_candidato
+            dicionarioCdGen = {key: value for key,value in zip(readerCandidato['SQ_CANDIDATO'],readerCandidato['CD_GENERO'])}
+            dicionarioDsGen = {key: value for key,value in zip(readerCandidato['SQ_CANDIDATO'],readerCandidato['DS_GENERO'])}
+            dicionarioTitulo = {key: value for key,value in zip(readerCandidato['SQ_CANDIDATO'],readerCandidato['NR_TITULO_ELEITORAL_CANDIDATO'])}
+            dicionarioIdade = {key: value for key,value in zip(readerCandidato['SQ_CANDIDATO'],readerCandidato['NR_IDADE_DATA_POSSE'])}
+            dicionarioCbo = {key: value for key,value in zip(readerCandidato['SQ_CANDIDATO'],readerCandidato['CD_CBO'])}
+            
+            readerVotacao['CD_GENERO'] = readerVotacao['SQ_CANDIDATO'].map(dicionarioCdGen)
+            readerVotacao['DS_GENERO'] = readerVotacao['SQ_CANDIDATO'].map(dicionarioDsGen)
+            readerVotacao['NR_TITULO_ELEITORAL_CANDIDATO'] = readerVotacao['SQ_CANDIDATO'].map(dicionarioTitulo)
+            readerVotacao['NR_IDADE_DATA_POSSE'] = readerVotacao['SQ_CANDIDATO'].map(dicionarioIdade)
+            readerVotacao['CD_CBO'] = readerVotacao['SQ_CANDIDATO'].map(dicionarioCbo)
+            # ai aqui seria só dar o mapping em cada um de votacao            
+
+## termino de new ##
             for z in range(len(readerVotacao)):
                 #limpeza nulos
-            
+
                     for campoVotacao in headerArquivoVotacao:
                             valor = readerVotacao[campoVotacao][z]
                             if(pd.isna(valor)==False):
@@ -510,20 +547,22 @@ def main(ano):
                     else:
                         readerVotacao.loc[z:z,'QT_VOTOS_NOMINAIS'] = votosCorretos
             
-                # consolidacao
-                    sqCandidato = readerVotacao['SQ_CANDIDATO'][z]
-                    for y in range(len(readerCandidato)):
+                # consolidacao ## OLD ##
+                    # sqCandidato = readerVotacao['SQ_CANDIDATO'][z]
+                    # for y in range(len(readerCandidato)):
                         
-                        if(readerCandidato['SQ_CANDIDATO'][y]==sqCandidato):
+                    #     if(readerCandidato['SQ_CANDIDATO'][y]==sqCandidato):
                             
-                            readerVotacao.loc[z:z,'CD_GENERO'] = readerCandidato['CD_GENERO'][y]
-                            readerVotacao.loc[z:z,'DS_GENERO'] = readerCandidato['DS_GENERO'][y]
-                            readerVotacao.loc[z:z,'NR_TITULO_ELEITORAL_CANDIDATO'] = readerCandidato['NR_TITULO_ELEITORAL_CANDIDATO'][y]
-                            readerVotacao.loc[z:z,'NR_IDADE_DATA_POSSE'] = readerCandidato['NR_IDADE_DATA_POSSE'][y]
-                            readerVotacao.loc[z:z,'CD_CBO'] = readerCandidato['CD_CBO'][y]
-
+                    #         readerVotacao.loc[z:z,'CD_GENERO'] = readerCandidato['CD_GENERO'][y]
+                    #         readerVotacao.loc[z:z,'DS_GENERO'] = readerCandidato['DS_GENERO'][y]
+                    #         readerVotacao.loc[z:z,'NR_TITULO_ELEITORAL_CANDIDATO'] = readerCandidato['NR_TITULO_ELEITORAL_CANDIDATO'][y]
+                    #         readerVotacao.loc[z:z,'NR_IDADE_DATA_POSSE'] = readerCandidato['NR_IDADE_DATA_POSSE'][y]
+                    #         readerVotacao.loc[z:z,'CD_CBO'] = readerCandidato['CD_CBO'][y]
+                    
+                    # termino de old #
+                    bar.next()
             readerVotacao.to_csv(arquivoVotacao,sep=',',encoding='utf8',index=False)
-        
+            bar.finish()
             print("FIM VALIDACAO VOTACAO")
         except FileNotFoundError:
             print("ARQUIVO NAO ENCONTRADO")
@@ -531,3 +570,4 @@ def main(ano):
 # ano = input('Digite o ano')
 ano = 2014
 main(ano)
+print("--- %s seconds ---" % (time.time() - start_time))
