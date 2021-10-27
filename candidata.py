@@ -33,12 +33,12 @@ from progress.bar import Bar
 
 # RECOLOCAR AQUI DPS
 siglas = [
-                            # 'AC',
-                            # 'AL',
-                            # 'AP',
-                            # 'AM',
-                            # 'BA',
-                            # 'CE',
+                            'AC',
+                            'AL',
+                            'AP',
+                            'AM',
+                            'BA',
+                            'CE',
                             'DF',
                             'ES',
                             'GO',
