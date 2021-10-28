@@ -567,7 +567,6 @@ def main(ano):
         except FileNotFoundError:
             print("ARQUIVO NAO ENCONTRADO")
 
-# ano = input('Digite o ano')
-ano = 2014
+ano = input('Digite o ano')
 main(ano)
 print("--- %s seconds ---" % (time.time() - start_time))
